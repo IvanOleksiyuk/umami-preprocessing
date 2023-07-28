@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 from ftag.hdf5 import H5Reader
+from scipy.interpolate import RectBivariateSpline
 from yamlinclude import YamlIncludeConstructor
 
 from upp.logger import ProgressBar
@@ -41,6 +42,8 @@ class Resampling:
             self.select_func = self.pdf_select_func
         elif self.config.method == "countup":
             self.select_func = self.countup_select_func
+        elif self.config.method == "pdf_bicubic_spline":
+            self.select_func = self.pdf_bicubic_spline_select_func
         elif not self.config.method or self.config.method == "none":
             self.select_func = None
         else:
@@ -51,16 +54,22 @@ class Resampling:
         num_jets = int(len(jets) * self.config.sampling_fraction)
         target_pdf = self.target.hist.pdf
         target_hist = target_pdf * num_jets
-        target_hist = (np.floor(target_hist + self.rng.random(target_pdf.shape))).astype(int)
+        target_hist = (
+            np.floor(target_hist + self.rng.random(target_pdf.shape))
+        ).astype(int)
         _hist, binnumbers = bin_jets(jets[self.config.vars], self.config.flat_bins)
         assert target_pdf.shape == _hist.shape
 
         # loop over bins and select relevant jets
         all_idx = []
         for bin_id in np.ndindex(*target_hist.shape):
-            idx = np.where((bin_id == binnumbers.T).all(axis=-1))[0][: target_hist[bin_id]]
+            idx = np.where((bin_id == binnumbers.T).all(axis=-1))[0][
+                : target_hist[bin_id]
+            ]
             if len(idx) and len(idx) < target_hist[bin_id]:
-                idx = np.concatenate([idx, self.rng.choice(idx, target_hist[bin_id] - len(idx))])
+                idx = np.concatenate(
+                    [idx, self.rng.choice(idx, target_hist[bin_id] - len(idx))]
+                )
             all_idx.append(idx)
         idx = np.concatenate(all_idx).astype(int)
         if len(idx) < num_jets:
@@ -81,11 +90,42 @@ class Resampling:
         idx = random.choices(np.arange(len(jets)), weights=probs, k=num_samples)
         return idx
 
+    def pdf_bicubic_spline_select_func(self, jets, component):
+        # importance sample with replacement
+        num_samples = int(len(jets) * self.config.sampling_fraction)
+        ratio = safe_divide(self.target.hist.pdf, component.hist.pdf)
+        x_bin_edges = self.config.flat_bins[0]
+        y_bin_edges = self.config.flat_bins[1]
+        x_bins = (x_bin_edges[:-1] + x_bin_edges[1:]) / 2
+        y_bins = (y_bin_edges[:-1] + y_bin_edges[1:]) / 2
+        inter_func = RectBivariateSpline(
+            x_bins,
+            y_bins,
+            ratio,
+            kx=3,
+            ky=3,
+            bbox=[
+                x_bin_edges[0],
+                x_bin_edges[-1],
+                y_bin_edges[0],
+                y_bin_edges[-1],
+            ],
+        )
+
+        probs = inter_func.ev(jets[self.config.vars[0]], jets[self.config.vars[1]])
+        probs[probs < 0] = 0.0
+        probs /= probs.sum()
+        idx = random.choices(np.arange(len(jets)), weights=probs, k=num_samples)
+
+        return idx
+
     def track_upsampling_stats(self, idx, component):
         unique, ups_counts = np.unique(idx, return_counts=True)
         component._unique_jets += len(unique)
         max_ups = ups_counts.max()
-        component._ups_max = max_ups if max_ups > component._ups_max else component._ups_max
+        component._ups_max = (
+            max_ups if max_ups > component._ups_max else component._ups_max
+        )
 
     def sample(self, components, stream, progress):
         # loop through input file
@@ -131,7 +171,9 @@ class Resampling:
 
         for c in components:
             if not c._complete:
-                raise ValueError(f"Ran out of {c} jets after writing {c.writer.num_written:,}")
+                raise ValueError(
+                    f"Ran out of {c} jets after writing {c.writer.num_written:,}"
+                )
 
     def run_on_region(self, components, region):
         # compute the target pdf
@@ -155,7 +197,8 @@ class Resampling:
 
                 for c in cs:
                     c.pbar = progress.add_task(
-                        f"[green]Sampling {c.num_jets:,} jets from {c}...", total=c.num_jets
+                        f"[green]Sampling {c.num_jets:,} jets from {c}...",
+                        total=c.num_jets,
                     )
 
                 # run sampling
@@ -185,7 +228,9 @@ class Resampling:
             f" {self.config.sampling_fraction}..."
         )
         for c in self.components:
-            sampling_frac = 1 if c.is_target(self.config.target) else self.config.sampling_fraction
+            sampling_frac = (
+                1 if c.is_target(self.config.target) else self.config.sampling_fraction
+            )
             c.check_num_jets(c.num_jets, sampling_frac=sampling_frac, cuts=c.cuts)
 
         # run resampling
@@ -195,6 +240,9 @@ class Resampling:
 
         # finalise
         unique = sum(c.writer.get_attr("unique_jets") for c in self.components)
-        log.info(f"[bold green]Finished resampling a total of {self.components.num_jets:,} jets!")
+        log.info(
+            "[bold green]Finished resampling a total of"
+            f" {self.components.num_jets:,} jets!"
+        )
         log.info(f"[bold green]Estimated unqiue jets: {unique:,.0f}")
         log.info(f"[bold green]Saved to {self.components.out_dir}/")

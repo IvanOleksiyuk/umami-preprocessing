@@ -1,0 +1,61 @@
+jets:
+  inputs:
+    - absEta_btagJes
+    - pt_btagJes
+    - JetFitter_isDefaults
+    - JetFitter_mass
+    - JetFitter_energyFraction
+    - JetFitter_significance3d
+    - JetFitter_nVTX
+    - JetFitter_nSingleTracks
+    - JetFitter_nTracksAtVtx
+    - JetFitter_N2Tpair
+    - JetFitter_deltaR
+    - JetFitterSecondaryVertex_isDefaults
+    - JetFitterSecondaryVertex_nTracks
+    - JetFitterSecondaryVertex_mass
+    - JetFitterSecondaryVertex_energy
+    - JetFitterSecondaryVertex_energyFraction
+    - JetFitterSecondaryVertex_displacement3d
+    - JetFitterSecondaryVertex_displacement2d
+    - JetFitterSecondaryVertex_maximumTrackRelativeEta
+    - JetFitterSecondaryVertex_minimumTrackRelativeEta
+    - JetFitterSecondaryVertex_averageTrackRelativeEta
+    - JetFitterSecondaryVertex_maximumAllJetTrackRelativeEta  # Modified name in R22. Was: maximumTrackRelativeEta
+    - JetFitterSecondaryVertex_minimumAllJetTrackRelativeEta  # Modified name in R22. Was: minimumTrackRelativeEta
+    - JetFitterSecondaryVertex_averageAllJetTrackRelativeEta  # Modified name in R22. Was: averageTrackRelativeEta
+    - SV1_isDefaults
+    - SV1_NGTinSvx
+    - SV1_masssvx
+    - SV1_N2Tpair
+    - SV1_efracsvx
+    - SV1_deltaR
+    - SV1_Lxy
+    - SV1_L3d
+    - SV1_correctSignificance3d # previously SV1_significance3d
+  labels: 
+    - HadronConeExclTruthLabelID
+
+
+tracks:
+  inputs:
+    - IP3D_signed_d0_significance
+    - IP3D_signed_z0_significance
+    - numberOfInnermostPixelLayerHits
+    - numberOfNextToInnermostPixelLayerHits
+    - numberOfInnermostPixelLayerSharedHits
+    - numberOfInnermostPixelLayerSplitHits
+    - numberOfPixelSharedHits
+    - numberOfPixelSplitHits
+    - numberOfSCTSharedHits
+    - ptfrac
+    - dr
+    - numberOfPixelHits
+    - numberOfSCTHits
+    - d0 
+    - z0SinTheta 
+  labels:
+    - truthOriginLabel
+    - truthVertexIndex
+    - truthOriginLabel
+    - truthVertexIndex
