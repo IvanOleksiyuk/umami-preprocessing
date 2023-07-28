@@ -87,7 +87,7 @@ class Resampling:
         # importance sample with replacement
         num_samples = int(len(jets) * self.config.sampling_fraction)
         probs = safe_divide(self.target.hist.pdf, component.hist.pdf)[binnumbers]
-        idx = random.choices(np.arange(len(jets)), weights=probs, k=num_samples)
+        idx = self.rng.choices(len(jets), p=probs, size=num_samples, replace=True)
         return idx
 
     def pdf_bicubic_spline_select_func(self, jets, component):
@@ -115,7 +115,7 @@ class Resampling:
         probs = inter_func.ev(jets[self.config.vars[0]], jets[self.config.vars[1]])
         probs[probs < 0] = 0.0
         probs /= probs.sum()
-        idx = random.choices(np.arange(len(jets)), weights=probs, k=num_samples)
+        idx = self.rng.choices(len(jets), p=probs, size=num_samples, replace=True)
 
         return idx
 
