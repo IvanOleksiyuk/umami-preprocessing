@@ -106,6 +106,10 @@ def main(config=None):
         log.info(f"Estimating PDF for {c}")
         c.setup_reader(config.batch_size)
         cuts_no_split = c.cuts.ignore(["eventNumber"])
+        if config.num_jets_estimate == -1:
+            config.num_jets_estimate = (
+                c.reader.estimate_available_jets(cuts_no_split, -1) / 1.02
+            )
         c.check_num_jets(config.num_jets_estimate, cuts=cuts_no_split, silent=True)
         jets = c.get_jets(sampl_vars, config.num_jets_estimate, cuts_no_split)
         c.hist.write_hist(jets, sampl_vars, config.sampl_cfg.flat_bins)
