@@ -50,8 +50,8 @@ class Resampling:
             raise ValueError(f"Unsupported resampling method {self.config.method}")
         self.rng = np.random.default_rng(42)
 
-    def countup_select_func(self, jets, component):  # noqa: ARG002
-        num_jets = int(len(jets) * self.config.sampling_fraction)
+    def countup_select_func(self, jets, component):
+        num_jets = int(len(jets) * component.sampling_fraction)
         target_pdf = self.target.hist.pdf
         target_hist = target_pdf * num_jets
         target_hist = (
@@ -85,7 +85,7 @@ class Resampling:
             binnumbers = tuple(binnumbers[i] for i in range(len(binnumbers)))
 
         # importance sample with replacement
-        num_samples = int(len(jets) * self.config.sampling_fraction)
+        num_samples = int(len(jets) * component.sampling_fraction)
         probs = safe_divide(self.target.hist.pdf, component.hist.pdf)[binnumbers]
         idx = random.choices(np.arange(len(jets)), weights=probs, k=num_samples)
         return idx
