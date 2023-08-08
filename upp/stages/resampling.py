@@ -220,30 +220,40 @@ class Resampling:
                 f" Jets are upsampled at most {np.max(c._ups_max):.0f} times"
             )
 
-    def set_auto_sampling_fraction(self):
-        optimal_frac_list = []
-        for c in self.components:
-            if c.is_target(self.config.target):
-                c.check_num_jets(c.num_jets, sampling_frac=1, cuts=c.cuts)
-                log.debug(f"target component -- no resampling needed")
-            optimal_frac_list.append(c.get_auto_sampling_frac(c.num_jets, cuts=c.cuts))
-        optimal_frac = np.max(optimal_frac_list)
-        optimal_frac = max(optimal_frac, 0.1)
-        if optimal_frac > 1:
-            if self.config.method == "countup":
-                raise ValueError(
-                    f"Sampling fraction of {optimal_frac:.3f}>1 is needed for one"
-                    " or more components. This is not supported for countup"
-                    " method."
-                )
-            else:
-                log.warning(
-                    f"[bold yellow]sampling fraction of {optimal_frac:.3f}>1 is"
-                    " needed for one or more components."
-                )
+    def set_component_sampling_fractions(self):
+        if (
+            self.config.sampling_fraction == "auto"
+            or self.config.sampling_fraction is None
+        ):
+            log.info(
+                "[bold green]Sampling fraction chosen for each component"
+                " automatically..."
+            )
+            for c in self.components:
+                if c.is_target(self.config.target):
+                    c.sampling_fraction = 1
+                else:
+                    sam_frac = c.get_auto_sampling_frac(c.num_jets, cuts=c.cuts)
+                    if sam_frac > 1:
+                        if self.config.method == "countup":
+                            log.fatal(
+                                f"[bold red]Sampling fraction of {sam_frac:.3f}>1 is"
+                                f" needed for component {c} This is not supported for"
+                                " countup method."
+                            )
+                            raise ValueError()
+                        else:
+                            log.warning(
+                                f"[bold yellow]sampling fraction of {sam_frac:.3f}>1 is"
+                                f" needed for component {c}"
+                            )
+                    c.sampling_fraction = max(sam_frac, 0.1)
         else:
-            log.info(f"[bold green]setting sampling fraction to {optimal_frac:.3f}...")
-            self.config.sampling_fraction = optimal_frac
+            for c in self.components:
+                if c.is_target(self.config.target):
+                    c.sampling_fraction = 1
+                else:
+                    c.sampling_fraction = self.config.sampling_fraction
 
     def run(self):
         title = " Running resampling "
@@ -256,27 +266,16 @@ class Resampling:
             c.setup_writer(self.variables)
 
         # set samplig fraction if needed
-        if (
-            self.config.sampling_fraction == "auto"
-            or self.config.sampling_fraction is None
-        ):
-            self.set_auto_sampling_fraction()
+
+        self.set_component_sampling_fractions()
 
         # check samples
         log.info(
             "[bold green]Checking requested num_jets based on a sampling fraction of"
             f" {self.config.sampling_fraction}..."
         )
-        if self.config.sampling_fraction == "auto":
-            self.set_auto_sampling_fraction()
-        else:
-            for c in self.components:
-                sampling_frac = (
-                    1
-                    if c.is_target(self.config.target)
-                    else self.config.sampling_fraction
-                )
-                c.check_num_jets(c.num_jets, sampling_frac=sampling_frac, cuts=c.cuts)
+        for c in self.components:
+            c.check_num_jets(c.num_jets, sampling_frac=c.sampling_fraction, cuts=c.cuts)
 
         # run resampling
         for region, components in self.components.groupby_region():
