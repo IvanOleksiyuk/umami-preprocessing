@@ -186,7 +186,9 @@ class Resampling:
             # make sure all tags equal_jets are the same
             equal_jets_flags = [c.equal_jets for c in cs]
             if len(set(equal_jets_flags)) != 1:
-                raise ValueError("equal_jets must be the same for all components in a sample")
+                raise ValueError(
+                    "equal_jets must be the same for all components in a sample"
+                )
             equal_jets_flag = equal_jets_flags[0]
 
             # setup input stream
@@ -252,6 +254,13 @@ class Resampling:
         for c in self.components:
             c.setup_reader(self.batch_size)
             c.setup_writer(self.variables)
+
+        # set samplig fraction if needed
+        if (
+            self.config.sampling_fraction == "auto"
+            or self.config.sampling_fraction is None
+        ):
+            self.set_auto_sampling_fraction()
 
         # check samples
         log.info(
