@@ -7,6 +7,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 from numpy.lib.recfunctions import structured_to_unstructured as s2u
+from scipy import ndimage
 from scipy.stats import binned_statistic_dd
 
 from upp.logger import setup_logger
@@ -52,11 +53,9 @@ class Hist:
         with h5py.File(self.path) as f:
             return f["pdf"][:]
 
-
-"""
     @functools.cached_property
     def upscaled_pdf(self):
-        upscale = 1
+        upscale = 2
         # get bins
         xs = []
         with h5py.File(self.path) as f:
@@ -65,7 +64,7 @@ class Hist:
         for var in attrs["resampling_vars"]:
             var_bins = attrs[f"bins_{var}"]
             n_bins = len(var_bins) - 1
-            points = np.linspace(0, n_bins - 1 , n_bins * upscale)
+            points = np.linspace(0, n_bins - 1, n_bins * upscale)
             xs.append(points)
 
         # return the smoothed pdf
@@ -73,6 +72,8 @@ class Hist:
         smoothed = ndimage.map_coordinates(self.pdf, xy, order=1)
         return smoothed / smoothed.sum()
 
+
+"""
 def smooth_weights(weights, path):
     upscale = 1
     print(upscale)
