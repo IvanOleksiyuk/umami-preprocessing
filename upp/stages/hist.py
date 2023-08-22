@@ -55,7 +55,7 @@ class Hist:
 
     @functools.cached_property
     def upscaled_pdf(self):
-        upscale = 2
+        upscl = 2
         # get bins
         xs = []
         with h5py.File(self.path) as f:
@@ -64,12 +64,14 @@ class Hist:
         for var in attrs["resampling_vars"]:
             var_bins = attrs[f"bins_{var}"]
             n_bins = len(var_bins) - 1
-            points = np.linspace(0, n_bins - 1, n_bins * upscale)
+            points = np.linspace(
+                -0.5 + 1 / 2 / upscl, n_bins - 0.5 - 1 / 2 / upscl, n_bins * upscl
+            )
             xs.append(points)
 
         # return the smoothed pdf
         xy = np.meshgrid(*xs, indexing="ij")
-        smoothed = ndimage.map_coordinates(self.pdf, xy, order=1)
+        smoothed = ndimage.map_coordinates(self.pdf, xy, order=3, mode="nearest")
         return smoothed / smoothed.sum()
 
 

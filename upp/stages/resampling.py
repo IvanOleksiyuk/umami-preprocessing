@@ -30,6 +30,13 @@ def safe_divide(a, b):
     return np.divide(a, b, out=np.zeros_like(a), where=b != 0)
 
 
+def subdivide_bins(bins, n=2):
+    comb_list = [np.array((bins[0],))]
+    for i in range(len(bins) - 1):
+        comb_list.append(np.linspace(bins[i], bins[i + 1], n + 1)[1:])
+    return np.concatenate(comb_list)
+
+
 class Resampling:
     def __init__(self, config):
         self.config = config.sampl_cfg
@@ -40,6 +47,8 @@ class Resampling:
         self.num_jets_estimate = config.num_jets_estimate
         if self.config.method == "pdf":
             self.select_func = self.pdf_select_func
+        elif self.config.method == "pdf_upscaled":
+            self.select_func = self.pdf_select_func_upscaled
         elif self.config.method == "countup":
             self.select_func = self.countup_select_func
         elif self.config.method == "pdf_bicubic_spline":
@@ -90,9 +99,25 @@ class Resampling:
         idx = random.choices(np.arange(len(jets)), weights=probs, k=num_samples)
         return idx
 
+    def pdf_select_func_upscaled(self, jets, component):
+        # bin jets
+        subd_bins = [subdivide_bins(bins, 2) for bins in self.config.flat_bins]
+        _hist, binnumbers = bin_jets(jets[self.config.vars], subd_bins)
+        # assert self.target.hist.pdf.shape == _hist.shape
+        if binnumbers.ndim > 1:
+            binnumbers = tuple(binnumbers[i] for i in range(len(binnumbers)))
+
+        # importance sample with replacement
+        num_samples = int(len(jets) * component.sampling_fraction)
+        probs = safe_divide(self.target.hist.upscaled_pdf, component.hist.upscaled_pdf)[
+            binnumbers
+        ]
+        idx = random.choices(np.arange(len(jets)), weights=probs, k=num_samples)
+        return idx
+
     def pdf_bicubic_spline_select_func(self, jets, component):
         # importance sample with replacement
-        num_samples = int(len(jets) * self.config.sampling_fraction)
+        num_samples = int(len(jets) * component.sampling_fraction)
         ratio = safe_divide(self.target.hist.pdf, component.hist.pdf)
         x_bin_edges = self.config.flat_bins[0]
         y_bin_edges = self.config.flat_bins[1]
@@ -115,7 +140,7 @@ class Resampling:
         probs = inter_func.ev(jets[self.config.vars[0]], jets[self.config.vars[1]])
         probs[probs < 0] = 0.0
         probs /= probs.sum()
-        idx = self.rng.choices(len(jets), p=probs, size=num_samples, replace=True)
+        idx = random.choices(np.arange(len(jets)), weights=probs, k=num_samples)
 
         return idx
 
