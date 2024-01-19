@@ -24,7 +24,7 @@ class TestClass:
         print("setup_method      method:%s" % method.__name__)
 
     def teardown_method(self, method):
-        subprocess.run(["rm", "-rf", "/tmp/upp-tests/integration"], check=True)
+        # subprocess.run(["rm", "-rf", "/tmp/upp-tests/integration"], check=True)
         print("teardown_method   method:%s" % method.__name__)
 
     def test_run_pdf_auto(self):
